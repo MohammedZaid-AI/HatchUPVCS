@@ -13,7 +13,7 @@ from src.models import PitchDeckData, InvestmentMemo, ExecutiveSummary
 
 # --- Page Config ---
 st.set_page_config(
-    page_title="HatchUp for VCs",
+    page_title="Pitch Deck Analyzer - HatchUp",
     page_icon="🥚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -33,7 +33,7 @@ with st.sidebar:
     
 
     st.info("Upload a Pitch Deck (PDF, PPTX, or Image) to begin analysis.")
-    st.caption("Powered by openai/gpt-oss-20b")
+    st.caption("Powered by HatchUp.ai")
 
 # --- Main App Logic ---
 
