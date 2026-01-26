@@ -29,7 +29,7 @@ Required Sections:
 - Team Assessment
 - Risks & Concerns (List, Max 5-7 distinct items)
 - Open Questions (List, Max 5-7 distinct items)
-- Neutral Assessment (Final verdict)
+- NEUTRAL ASSESSMENT (Final verdict - CRITICAL)
 Constraint: Do NOT generate repetitive lists. Keep it concise."""
 
         prompt = ChatPromptTemplate.from_messages([

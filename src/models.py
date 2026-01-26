@@ -32,7 +32,7 @@ class InvestmentMemo(BaseModel):
     team_assessment: str
     risks_concerns: List[str]
     open_questions: List[str]
-    neutral_assessment: str
+    neutral_assessment: Optional[str] = Field(default="No specific assessment provided.", description="Final verdict")
 
 class ExecutiveSummary(BaseModel):
     summary_bullet_points: List[str] = Field(description="5-7 bullet points summarizing the deal")

@@ -111,7 +111,7 @@ class Exporter:
                 # Convert list to bullet points
                 formatted_content = "\n".join([f"- {item}" for item in content])
             else:
-                formatted_content = content
+                formatted_content = content or ""
                 
             # Sanitize content
             safe_content = Exporter._sanitize_text(formatted_content)
@@ -146,7 +146,7 @@ class Exporter:
                 for item in content:
                     lines.append(f"- {item}")
             else:
-                lines.append(content)
+                lines.append(content or "")
                 
             lines.append("")
             
