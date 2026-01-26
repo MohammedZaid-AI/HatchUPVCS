@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "@echolab/mcp-reddit": {
+      "command": "python",
+      "args": ["mcp_reddit/server.py"]
+    },    
+    "@echolab/mcp-wikipedia": {
+      "command": "python",
+      "args": ["mcp_wiki/server.py"]
+    },
+    "@echolab/mcp-google": {
+      "command": "python",
+      "args": ["mcp_google/server.py"]
+    },
+    "@echolab/mcp-medium": {
+      "command": "python",
+      "args": ["mcp_medium/server.py"]
+    }
+  }
+} 

@@ -1,0 +1,180 @@
+import asyncio
+import os
+import streamlit as st
+from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from mcp_use import MCPClient
+from my_random import get_random_user_display
+
+load_dotenv()
+os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+
+# Initialize Chat Model
+llm = ChatGroq(
+    model="openai/gpt-oss-20b",
+    temperature=0.3, # Slightly higher for conversational flow
+    groq_api_key=os.environ.get("GROQ_API_KEY")
+)
+
+# Flexible Prompt for Chat mode
+chat_prompt = ChatPromptTemplate.from_messages([
+    (
+        "system",
+        """
+        You are HatchUp Chat, a smart VC research assistant.
+        
+        BEHAVIOR:
+        1. If the user says "Hello" or engages in small talk, reply conversationally and politely. Do NOT generate a business report for greetings.
+        2. If the user asks a specific question or topic (e.g., "AI Agents", "Market for EV batteries"), use the provided [Context] to generate a structured analysis:
+           - 🎯 Key Insights
+           - 📈 Market Signals
+           - ⚠️ Risks
+        3. IGNORE error messages in the context (e.g., "MCP Error", "Tool not found"). 
+        4. Do NOT hallucinate acronyms or facts. If the context is empty or irrelevant, say so.
+        
+        Your goal is to be a helpful, chatty partner who offers deep research when asked.
+        """
+    ),
+    (
+        "human",
+        """
+        [Context from Live Tools]
+        {context}
+
+        [Conversation History]
+        {history}
+
+        [Current User Input]
+        {question}
+        """
+    )
+])
+
+# Initialize MCP Client
+client = MCPClient.from_config_file("config.json")
+
+async def run_searches(query: str):
+    """
+    Runs live searches using MCP tools. Returns a dictionary of results.
+    """
+    # Ensure session exists
+    if "mcp_sessions" not in st.session_state:
+        st.session_state.mcp_sessions = await client.create_all_sessions()
+
+    sessions = st.session_state.mcp_sessions
+
+    def fail(name, e):
+        return f"[{name} MCP Error: {str(e)}]"
+
+    # 1. Reddit (Community Sentiment) - Limit 1 to save tokens
+    try:
+        reddit = await sessions["@echolab/mcp-reddit"].call_tool(
+            "fetch_reddit_posts_with_comments", 
+            {"subreddit": "startups", "limit": 1} 
+        )
+    except Exception as e:
+        reddit = fail("Reddit", e)
+
+    # 2. Wikipedia (Definitions/Background)
+    try:
+        wiki = await sessions["@echolab/mcp-wikipedia"].call_tool(
+            "search", {"query": query}
+        )
+    except Exception as e:
+        wiki = fail("Wikipedia", e)
+
+    # 3. Google (News & Competitors)
+    try:
+        google = await sessions["@echolab/mcp-google"].call_tool(
+            "google_search", {"query": query}
+        )
+    except Exception as e:
+        google = fail("Google", e)
+
+    # 4. Medium (Thought Leadership)
+    try:
+        medium = await sessions["@echolab/mcp-medium"].call_tool(
+            "search_medium", {"query": query}
+        )
+    except Exception as e:
+        medium = fail("Medium", e)
+
+    return {"reddit": reddit, "wiki": wiki, "google": google, "medium": medium}
+
+
+def build_context_string(results: dict) -> str:
+    """
+    Formats the search results into a context string, truncating to avoid token overflow.
+    """
+    def truncate(content, limit=2000):
+        s = str(content)
+        return s[:limit] + "... [TRUNCATED]" if len(s) > limit else s
+
+    return f"""
+    --- SEARCH RESULTS ---
+    [Reddit]: {truncate(results.get("reddit"))}
+    [Wikipedia]: {truncate(results.get("wiki"))}
+    [Google]: {truncate(results.get("google"))}
+    [Medium]: {truncate(results.get("medium"))}
+    ----------------------
+    """
+
+async def main():
+    st.set_page_config(page_title="HatchUp Chat", page_icon="💬")
+    st.title("💬 HatchUp Chat")
+    
+    # Initialize Chat History
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = [
+            {"role": "assistant", "content": "Hello! I'm your research assistant. Ask me about a market, startup, or trend, and I'll find live data for you."}
+        ]
+
+    # Display History
+    for msg in st.session_state.chat_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Handle User Input
+    if prompt := st.chat_input("Ask a question (e.g., 'Competitors to Airbnb')..."):
+        # 1. Display User Message
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        st.session_state.chat_messages.append({"role": "user", "content": prompt})
+
+        # 2. Assistant Helper Logic
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            message_placeholder.markdown("🔎 *Researching live sources...*")
+            
+            try:
+                # A. Run Research (Always run to capture context if needed)
+                # If query is short greeting, we might skip, but LLM handles it best.
+                results = await run_searches(prompt)
+                context_str = build_context_string(results)
+                
+                # B. Prepare Prompt
+                history_text = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in st.session_state.chat_messages[-5:]]) # Last 5 turns
+                
+                messages = chat_prompt.format_messages(
+                    context=context_str,
+                    history=history_text,
+                    question=prompt
+                )
+                
+                # C. Generate Answer
+                full_response = llm.invoke(messages).content
+                
+                # D. Display Final Answer
+                message_placeholder.markdown(full_response)
+                st.session_state.chat_messages.append({"role": "assistant", "content": full_response})
+                
+            except Exception as e:
+                error_msg = f"⚠️ An error occurred: {str(e)}"
+                message_placeholder.error(error_msg)
+                # Don't append error to history to avoid pollution, or append as system note?
+                # We'll validly append it so user knows.
+                st.session_state.chat_messages.append({"role": "assistant", "content": error_msg})
+
+if __name__ == "__main__":
+    asyncio.run(main())

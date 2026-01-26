@@ -12,3 +12,12 @@ python-dotenv
 tiktoken
 pytesseract
 PyPDF2
+langchain-mcp-adapters
+mcp
+langgraph
+praw
+requests
+wikipedia
+google-api-python-client
+transformers
+mcp_use
