@@ -20,4 +20,4 @@ requests
 wikipedia
 google-api-python-client
 transformers
-mcp_use
+mcp-use
