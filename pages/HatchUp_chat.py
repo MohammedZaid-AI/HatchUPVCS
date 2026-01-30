@@ -7,8 +7,42 @@ from langchain_core.prompts import ChatPromptTemplate
 from mcp_use import MCPClient
 from my_random import get_random_user_display
 
+# Load .env first
 load_dotenv()
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+
+# ---------------------------------------------------------
+# CRITICAL: Inject Streamlit Secrets into os.environ
+# This ensures that tools running as subprocesses (MCP servers)
+# can access keys like REDDIT_CLIENT_ID from Streamlit Cloud Secrets.
+# ---------------------------------------------------------
+try:
+    if hasattr(st, "secrets"):
+        # 1. Flatten specific keys if they exist in general sections
+        secret_keys = [
+            "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "USER_AGENT",
+            "GOOGLE_API_KEY", "SEARCH_ENGINE_ID", "GROQ_API_KEY"
+        ]
+        
+        # Helper to find a key in secrets (handles [general] or top-level)
+        def get_secret(key):
+            if key in st.secrets:
+                return str(st.secrets[key])
+            # Check common sections
+            for section in ["general", "env", "credentials"]:
+                if section in st.secrets and key in st.secrets[section]:
+                    return str(st.secrets[section][key])
+            return None
+
+        for key in secret_keys:
+            val = get_secret(key)
+            if val:
+                os.environ[key] = val
+                # print(f"Loaded {key} from secrets") # Debug only
+
+except Exception as e:
+    print(f"Error loading secrets: {e}")
+# ---------------------------------------------------------
 
 # Initialize Chat Model
 llm = ChatGroq(

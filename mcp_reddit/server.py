@@ -1,9 +1,18 @@
-from mcp.server import FastMCP
-import praw
-import os
-from dotenv import load_dotenv
-from pathlib import Path
 import sys
+import traceback
+
+# Debug: Signal start
+print("[Reddit MCP] Initializing...", file=sys.stderr)
+
+try:
+    from mcp.server import FastMCP
+    import praw
+    import os
+    from dotenv import load_dotenv
+    from pathlib import Path
+except Exception:
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
 
 
 # Load .env from the same directory as this script
@@ -70,5 +79,9 @@ def fetch_reddit_posts_with_comments(subreddit="all", limit="5", comments_per_po
 
 
 if __name__ == "__main__":
-    print("Reddit MCP Server is running...", file=sys.stderr)
-    mcp.run(transport="stdio")
+    try:
+        print("[Reddit MCP] Running...", file=sys.stderr)
+        mcp.run(transport="stdio")
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
