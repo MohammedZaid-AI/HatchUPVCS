@@ -86,7 +86,53 @@ chat_prompt = ChatPromptTemplate.from_messages([
 ])
 
 # Initialize MCP Client
-client = MCPClient.from_config_file("config.json")
+# Initialize MCP Client with Dynamic Config
+# We use sys.executable to ensure the sub-processes use the same python environment (with installed deps)
+# We use absolute paths to ensure the scripts are found regardless of CWD
+import sys
+
+base_dir = Path(__file__).parent.parent.resolve() # Start from pages/, go up to root
+reddit_script = base_dir / "mcp_reddit" / "server.py"
+wiki_script = base_dir / "mcp_wiki" / "server.py"
+google_script = base_dir / "mcp_google" / "server.py"
+medium_script = base_dir / "mcp_medium" / "server.py"
+
+server_config = {
+    "mcpServers": {
+        "@echolab/mcp-reddit": {
+            "command": sys.executable,
+            "args": [str(reddit_script)]
+        },
+        "@echolab/mcp-wikipedia": {
+            "command": sys.executable,
+            "args": [str(wiki_script)]
+        },
+        "@echolab/mcp-google": {
+            "command": sys.executable,
+            "args": [str(google_script)]
+        },
+        "@echolab/mcp-medium": {
+            "command": sys.executable,
+            "args": [str(medium_script)]
+        }
+    }
+}
+
+# Use the dynamic config directly
+# Note: MCPClient might need an update if it doesn't support dict init directly, 
+# but usually from_config_file just reads json. 
+# Looking at standard implementations, we can likely pass the dict or write a temp file.
+# Assuming MCPClient has a constructor that accepts the config dict or we monkeypatch.
+# Let's check imports. from mcp_use import MCPClient.
+# If MCPClient doesn't accept a dict, we'll write a temp config.
+# Safest bet: Write a temp absoluted config file.
+
+import json
+temp_config_path = base_dir / "config_dynamic.json"
+with open(temp_config_path, "w") as f:
+    json.dump(server_config, f, indent=2)
+
+client = MCPClient.from_config_file(str(temp_config_path))
 
 async def run_searches(query: str):
     """
